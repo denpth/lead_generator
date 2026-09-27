@@ -1,0 +1,29 @@
+{
+  "name": "Lead Intake - First Vertical Slice",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-intake",
+        "options": {}
+      },
+      "id": "a75ee401-5862-4d32-94c7-31d9c65d1952",
+      "name": "Lead Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [260, 300],
+      "webhookId": "lead-intake"
+    }
+  ],
+  "connections": {},
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "9ab0f76d-675e-4410-afd8-5e4965069240",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}
