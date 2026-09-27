@@ -18,7 +18,7 @@ services:
       retries: 10
 
   n8n:
-    image: ${N8N_IMAGE:-n8nio/n8n:latest}
+    image: ${N8N_IMAGE:-n8nio/n8n:2.40.7}
     depends_on:
       postgres:
         condition: service_healthy
@@ -38,6 +38,12 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
       - ./n8n/workflows:/workflows:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5678/healthz/readiness').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   api:
     build: .
@@ -45,7 +51,7 @@ services:
       postgres:
         condition: service_healthy
       n8n:
-        condition: service_started
+        condition: service_healthy
     environment:
       APP_ENV: ${APP_ENV:-development}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@postgres:5432/${POSTGRES_DB:-leadgen}
@@ -55,6 +61,12 @@ services:
       N8N_WEBHOOK_BACKOFF_SECONDS: ${N8N_WEBHOOK_BACKOFF_SECONDS:-0.5}
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
 volumes:
   postgres_data:

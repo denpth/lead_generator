@@ -35,7 +35,7 @@ tests/              API and delivery tests
 1. Copy the environment template:
 
    ```bash
-   cp .env.example .env
+   test -f .env || (umask 077; cp .env.example .env)
    ```
 
 2. Set a real `N8N_ENCRYPTION_KEY` in `.env`.
@@ -46,9 +46,18 @@ tests/              API and delivery tests
    docker compose up --build -d
    ```
 
-   The API runs Alembic migrations before starting Uvicorn.
+   The API runs Alembic migrations before starting Uvicorn. PostgreSQL, n8n, and the API each have health checks; the API waits for n8n readiness during startup. Run `docker compose ps` to confirm all three are healthy.
 
-4. Open n8n at `http://localhost:5678`, complete the local owner setup if prompted, import `n8n/workflows/lead_intake.json`, and activate the workflow. The production webhook URL used by the API is:
+4. Open n8n at `http://localhost:5678`, complete the local owner setup if prompted, import `n8n/workflows/lead_intake.json`, and publish the workflow. Alternatively, initialize the included workflow from the CLI:
+
+   ```bash
+   docker compose exec -T n8n n8n import:workflow --input=/workflows/lead_intake.json
+   docker compose exec -T n8n n8n publish:workflow --id=a75ee401-5862-4d32-94c7-31d9c65d1953
+   docker compose restart n8n
+   docker compose up -d --wait
+   ```
+
+   The CLI changes the database, so the restart is required to register the production webhook. Import once during initial setup: reimporting the same workflow ID replaces that workflow, including any local edits. The pinned n8n version is `2.40.7`. The production webhook URL used by the API is:
 
    ```text
    http://n8n:5678/webhook/lead-intake
@@ -96,7 +105,7 @@ Python 3.12+ is required.
 python -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
-cp .env.example .env
+test -f .env || (umask 077; cp .env.example .env)
 alembic upgrade head
 uvicorn app.main:app --reload
 ```

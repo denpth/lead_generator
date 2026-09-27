@@ -88,3 +88,30 @@ def test_dispatcher_does_not_retry_non_retryable_4xx() -> None:
     assert result.attempts == 1
     assert result.status_code == 400
     assert sleeps == []
+
+
+def test_network_failure_clears_status_from_previous_http_attempt() -> None:
+    attempts = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(503)
+        raise httpx.ConnectError("connection lost")
+
+    dispatcher = N8nDispatcher(
+        webhook_url="http://n8n.test/webhook/lead-intake",
+        timeout_seconds=1,
+        max_attempts=2,
+        backoff_seconds=0,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+        sleeper=lambda _delay: None,
+    )
+
+    result = dispatcher.dispatch(make_lead())
+
+    assert result.success is False
+    assert result.attempts == 2
+    assert result.status_code is None
+    assert "ConnectError" in result.error

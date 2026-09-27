@@ -84,6 +84,7 @@ class N8nDispatcher:
                         error=last_error,
                     )
             except httpx.HTTPError as exc:
+                last_status_code = None
                 last_error = f"n8n request failed: {exc.__class__.__name__}: {exc}"
 
             if attempt < self.max_attempts:
