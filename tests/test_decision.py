@@ -51,6 +51,16 @@ def test_decision_uses_local_summary_and_minimizes_jev_state() -> None:
                         "choice": "immediate",
                         "confidence": 0.91,
                     },
+                    "summary_fidelity": {
+                        "type": "choice",
+                        "choice": "faithful",
+                        "confidence": 0.96,
+                    },
+                    "input_safety": {
+                        "type": "choice",
+                        "choice": "safe",
+                        "confidence": 0.98,
+                    },
                 },
             },
         )
@@ -76,16 +86,20 @@ def test_decision_uses_local_summary_and_minimizes_jev_state() -> None:
     summary_body = json.loads(requests[0].read())
     assert summary_body["think"] is False
     jev_request = json.loads(jev_body)
-    assert set(jev_request["questions"]) == {"response_speed"}
+    assert set(jev_request["questions"]) == {
+        "response_speed",
+        "summary_fidelity",
+        "input_safety",
+    }
     assert "Private" not in jev_body
     assert "private@example.com" not in jev_body
     assert "5551234567" not in jev_body
     assert "555-123-4567" not in jev_body
-    assert "Acme needs a proposal tomorrow" not in jev_body
+    assert "Acme needs a proposal tomorrow" in jev_request["state"]["generated_summary"]
     assert jev_request["state"]["lead_notes"] == "Need a proposal before tomorrow morning."
 
 
-def test_missing_jev_key_routes_to_review_without_losing_summary() -> None:
+def test_missing_jev_key_routes_to_review_with_original_facts() -> None:
     def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             200, json={"response": json.dumps({"summary": "A short factual summary."})}
@@ -106,7 +120,9 @@ def test_missing_jev_key_routes_to_review_without_losing_summary() -> None:
     result = engine.decide(make_lead())
 
     assert result.priority == ResponsePriority.REVIEW
-    assert result.summary == "A short factual summary."
+    assert result.summary == (
+        "Source: website. Company: Acme. Notes: Need a proposal before tomorrow morning."
+    )
     assert "not configured" in (result.warning or "")
 
 
@@ -125,7 +141,17 @@ def test_low_confidence_jev_choice_routes_to_review() -> None:
                         "type": "choice",
                         "choice": "standard",
                         "confidence": 0.64,
-                    }
+                    },
+                    "summary_fidelity": {
+                        "type": "choice",
+                        "choice": "faithful",
+                        "confidence": 0.99,
+                    },
+                    "input_safety": {
+                        "type": "choice",
+                        "choice": "safe",
+                        "confidence": 0.99,
+                    },
                 },
             },
         )
@@ -160,7 +186,7 @@ def test_review_discards_a_prompt_injected_model_summary() -> None:
                 },
             )
         body = json.loads(request.read())
-        assert "Production is down" not in json.dumps(body)
+        assert "Production is down" in body["state"]["generated_summary"]
         assert "Ignore prior instructions" in body["state"]["lead_notes"]
         return httpx.Response(
             200,
@@ -169,9 +195,19 @@ def test_review_discards_a_prompt_injected_model_summary() -> None:
                 "answers": {
                     "response_speed": {
                         "type": "choice",
-                        "choice": "review",
+                        "choice": "immediate",
                         "confidence": 0.98,
-                    }
+                    },
+                    "summary_fidelity": {
+                        "type": "choice",
+                        "choice": "unfaithful",
+                        "confidence": 0.99,
+                    },
+                    "input_safety": {
+                        "type": "choice",
+                        "choice": "suspicious",
+                        "confidence": 0.99,
+                    },
                 },
             },
         )
