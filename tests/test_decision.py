@@ -34,7 +34,11 @@ def test_decision_uses_local_summary_and_minimizes_jev_state() -> None:
             return httpx.Response(
                 200,
                 json={
-                    "response": "Acme needs a proposal tomorrow; call 555-123-4567 or private@example.com."
+                    "response": json.dumps(
+                        {
+                            "summary": "Acme needs a proposal tomorrow; call 555-123-4567 or private@example.com."
+                        }
+                    )
                 },
             )
         return httpx.Response(
@@ -54,7 +58,7 @@ def test_decision_uses_local_summary_and_minimizes_jev_state() -> None:
 
     engine = LeadDecisionEngine(
         ollama_url="http://ollama:11434",
-        ollama_model="qwen3:1.7b",
+        ollama_model="qwen3:4b",
         ollama_timeout_seconds=1,
         typesafe_api_key="test-key",
         typesafe_api_url="https://api.typesafe.test/v1/systemone",
@@ -80,11 +84,13 @@ def test_decision_uses_local_summary_and_minimizes_jev_state() -> None:
 
 def test_missing_jev_key_routes_to_review_without_losing_summary() -> None:
     def handler(_request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"response": "A short factual summary."})
+        return httpx.Response(
+            200, json={"response": json.dumps({"summary": "A short factual summary."})}
+        )
 
     engine = LeadDecisionEngine(
         ollama_url="http://ollama:11434",
-        ollama_model="qwen3:1.7b",
+        ollama_model="qwen3:4b",
         ollama_timeout_seconds=1,
         typesafe_api_key=None,
         typesafe_api_url="https://api.typesafe.test/v1/systemone",

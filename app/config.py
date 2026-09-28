@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     n8n_webhook_backoff_seconds: float = Field(default=0.5, ge=0)
     automation_internal_key: str = "replace-this-local-automation-key"
     ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "qwen3:1.7b"
+    ollama_model: str = "qwen3:4b"
     ollama_timeout_seconds: float = Field(default=30.0, gt=0)
     typesafe_api_key: str | None = None
     typesafe_api_url: str = "https://api.typesafe.ai/v1/systemone"

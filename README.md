@@ -17,7 +17,7 @@ First production-style vertical slice for lead intake automation:
 - Docker Compose stack for the frontend, API, PostgreSQL, and n8n.
 - Importable n8n starter workflow at `n8n/workflows/lead_intake.json`.
 - Private decision endpoint used by n8n, with a shared automation key.
-- Local Qwen3 1.7B summaries through Ollama; structured names, email, and phone fields are excluded from Jev, and email/phone patterns in summaries are redacted.
+- Local Qwen3 4B summaries through Ollama; structured names, email, and phone fields are excluded from Jev, and email/phone patterns in summaries are redacted.
 - Jev response-speed decisions with confidence gating and a human-review fallback.
 - API and dispatcher tests that run without Docker by using SQLite and `httpx.MockTransport`.
 
@@ -55,7 +55,7 @@ frontend/           Node.js server, browser UI, and proxy tests
    The API runs Alembic migrations before starting Uvicorn. The stack includes the frontend, API, PostgreSQL, n8n, and Ollama. Run `docker compose ps` to confirm they are healthy, then install the lightweight summary model once:
 
    ```bash
-   docker compose exec ollama ollama pull qwen3:1.7b
+   docker compose exec ollama ollama pull qwen3:4b
    ```
 
 4. Open n8n at `http://localhost:5678`, complete the local owner setup if prompted, import `n8n/workflows/lead_intake.json`, and publish the workflow. Alternatively, initialize the included workflow from the CLI:

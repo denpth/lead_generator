@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import json
 import re
 from typing import Any
 
@@ -101,9 +102,15 @@ class LeadDecisionEngine:
                     "model": self.ollama_model,
                     "stream": False,
                     "think": False,
+                    "format": {
+                        "type": "object",
+                        "properties": {"summary": {"type": "string"}},
+                        "required": ["summary"],
+                    },
                     "prompt": (
-                        "Summarize this inbound lead in one factual sentence under 35 words. "
-                        "Do not infer facts, urgency, or intent. Return only the sentence.\n"
+                        "/no_think\nSummarize this inbound lead in one factual sentence under "
+                        "35 words. Do not infer facts, urgency, or intent. Return JSON with "
+                        "one string field named summary.\n"
                         f"Lead facts: {facts}"
                     ),
                     "options": {"temperature": 0, "num_predict": 80},
@@ -158,12 +165,10 @@ class LeadDecisionEngine:
 
     @staticmethod
     def _clean_summary(value: str) -> str:
-        summary = value.strip()
-        if "</think>" in summary:
-            summary = summary.split("</think>", 1)[1].strip()
-        if summary.startswith("<think>"):
+        payload = json.loads(value)
+        if not isinstance(payload, dict):
             return ""
-        return summary
+        return str(payload.get("summary", "")).strip()
 
     @staticmethod
     def _redact_for_jev(value: str) -> str:
