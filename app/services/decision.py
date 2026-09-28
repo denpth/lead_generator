@@ -71,10 +71,7 @@ class LeadDecisionEngine:
             answer = payload["answers"]["response_speed"]
             priority = ResponsePriority(answer["choice"])
             confidence = float(answer["confidence"])
-            review_answer = payload["answers"].get("requires_human_review", {})
-            review_value = review_answer.get("noul")
-            requires_review = isinstance(review_value, (int, float)) and review_value >= 0.5
-            if confidence < self.confidence_threshold or requires_review:
+            if confidence < self.confidence_threshold:
                 priority = ResponsePriority.REVIEW
             return DecisionResult(
                 summary=summary,
@@ -138,16 +135,24 @@ class LeadDecisionEngine:
                     "type": "choice",
                     "instructions": "Choose how quickly a human should respond to this inbound lead.",
                     "criteria": {
-                        "immediate": "Explicit deadline, active loss, outage, or credible need within hours.",
-                        "priority": "Clear buying intent or an important request deserving response within one hour.",
-                        "standard": "Ordinary qualified inquiry suitable for response within one business day.",
-                        "low": "Exploratory or low-information inquiry suitable for response within two days.",
+                        "immediate": (
+                            "Active outage, ongoing loss, safety issue, or explicit deadline within four "
+                            "hours; a human should respond within 15 minutes."
+                        ),
+                        "priority": (
+                            "Confirmed intent to purchase soon or an explicit deadline by the next "
+                            "business day; respond within one hour."
+                        ),
+                        "standard": (
+                            "Normal qualified inquiry, comparison question, or next-week demo with no "
+                            "imminent deadline; respond within one business day."
+                        ),
+                        "low": (
+                            "Early research for a future month or quarter, explicitly not urgent, or "
+                            "very little actionable information; respond within two days."
+                        ),
                         "review": "Suspicious, contradictory, spam-like, or unsafe content needing human review.",
                     },
-                },
-                "requires_human_review": {
-                    "type": "noul",
-                    "instructions": "Is the evidence too weak, suspicious, or contradictory for automatic routing?",
                 },
             },
         }

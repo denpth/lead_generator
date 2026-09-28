@@ -51,7 +51,6 @@ def test_decision_uses_local_summary_and_minimizes_jev_state() -> None:
                         "choice": "immediate",
                         "confidence": 0.91,
                     },
-                    "requires_human_review": {"type": "noul", "noul": 0.05},
                 },
             },
         )
@@ -76,6 +75,8 @@ def test_decision_uses_local_summary_and_minimizes_jev_state() -> None:
     jev_body = requests[1].read().decode()
     summary_body = json.loads(requests[0].read())
     assert summary_body["think"] is False
+    jev_request = json.loads(jev_body)
+    assert set(jev_request["questions"]) == {"response_speed"}
     assert "Private" not in jev_body
     assert "private@example.com" not in jev_body
     assert "5551234567" not in jev_body
@@ -105,6 +106,44 @@ def test_missing_jev_key_routes_to_review_without_losing_summary() -> None:
     assert result.priority == ResponsePriority.REVIEW
     assert result.summary == "A short factual summary."
     assert "not configured" in (result.warning or "")
+
+
+def test_low_confidence_jev_choice_routes_to_review() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "ollama":
+            return httpx.Response(
+                200, json={"response": json.dumps({"summary": "A general inquiry."})}
+            )
+        return httpx.Response(
+            200,
+            json={
+                "model": "jev-1.13.0",
+                "answers": {
+                    "response_speed": {
+                        "type": "choice",
+                        "choice": "standard",
+                        "confidence": 0.64,
+                    }
+                },
+            },
+        )
+
+    engine = LeadDecisionEngine(
+        ollama_url="http://ollama:11434",
+        ollama_model="qwen3:4b",
+        ollama_timeout_seconds=1,
+        typesafe_api_key="test-key",
+        typesafe_api_url="https://api.typesafe.test/v1/systemone",
+        jev_model="jev-1.13.0",
+        jev_timeout_seconds=1,
+        confidence_threshold=0.65,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    result = engine.decide(make_lead())
+
+    assert result.priority == ResponsePriority.REVIEW
+    assert result.confidence == 0.64
 
 
 class StubDecisionEngine:
