@@ -145,6 +145,8 @@ List endpoint example: `GET /leads?limit=20&offset=0&status=failed&q=Acme`. The 
 
 The UI disables submission while delivery is in flight. If a network interruption makes the result uncertain, it asks the user to refresh before submitting again. It never automatically repeats a lead-creation request. `Dispatched` confirms webhook acceptance, not downstream workflow completion.
 
+Partial contacts are supported: name, company, and notes are optional. Provide an email or a phone number containing at least seven digits. A supplied invalid phone is rejected even when an email is also present; clear the phone field to use email only. Both the page and API explain this rule. Unexpected or incomplete server responses are rejected before rendering contact details, so they cannot appear as saved leads with invalid dates.
+
 ## Failure semantics
 
 The database commit happens before the outbound n8n call. This is intentional: a temporary automation outage must not discard a valid lead. The HTTP resource is therefore created even when automation dispatch ultimately fails, and the response exposes that state as `failed` so the same lead can be retried safely.

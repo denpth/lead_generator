@@ -1,3 +1,9 @@
+import {
+  formatDate as date,
+  phoneError,
+  readApiResponse,
+} from "./api-client.js";
+
 const $ = (id) => document.getElementById(id);
 const escape = (value) =>
   String(value ?? "").replace(
@@ -41,14 +47,6 @@ function initials(lead) {
         .toUpperCase()
     : (lead.email || lead.phone || "?").slice(0, 2).toUpperCase();
 }
-function date(value, full = false) {
-  return new Date(value).toLocaleString(
-    undefined,
-    full
-      ? { dateStyle: "medium", timeStyle: "short" }
-      : { month: "short", day: "numeric", year: "numeric" },
-  );
-}
 function badge(status) {
   return `<span class="status-badge ${escape(status)}">${escape(statusNames[status] || status)}</span>`;
 }
@@ -87,20 +85,10 @@ async function api(path, options = {}) {
         : "Cannot reach the lead service. Check your connection and try again.",
     );
   }
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const detail = body.detail;
-    throw new Error(
-      Array.isArray(detail)
-        ? detail
-            .map((e) => `${e.loc?.slice(1).join(" › ") || "Lead"}: ${e.msg}`)
-            .join(" · ")
-        : typeof detail === "string"
-          ? detail
-          : "The request could not be completed.",
-    );
-  }
-  return body;
+  return readApiResponse(response, {
+    page: (path === "/leads" && !options.method) || path.startsWith("/leads?"),
+    write: options.method === "POST",
+  });
 }
 
 async function loadLeads() {
@@ -297,6 +285,12 @@ $("lead-form").addEventListener("submit", async (event) => {
   if (!payload.source) {
     showError("form-error", "Enter a source for this lead.");
     event.target.elements.source.focus();
+    return;
+  }
+  const phoneMessage = phoneError(payload.phone);
+  if (phoneMessage) {
+    showError("form-error", phoneMessage);
+    event.target.elements.phone.focus();
     return;
   }
   state.busy = true;

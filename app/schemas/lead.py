@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, mo
 
 from app.models.lead import LeadStatus
 
-_PHONE_RE = re.compile(r"^[0-9+().\-\s]{7,32}$")
+_PHONE_RE = re.compile(r"^[0-9+().\-\s]{1,32}$")
 
 
 class LeadCreate(BaseModel):
@@ -34,7 +34,13 @@ class LeadCreate(BaseModel):
     @classmethod
     def validate_phone(cls, value: str | None) -> str | None:
         if value is not None and not _PHONE_RE.fullmatch(value):
-            raise ValueError("phone contains unsupported characters or has an invalid length")
+            raise ValueError(
+                "phone may contain only digits, spaces, +, parentheses, periods, and hyphens"
+            )
+        if value is not None and len(re.sub(r"\D", "", value)) < 7:
+            raise ValueError(
+                "phone must contain at least 7 digits; otherwise leave it blank and provide an email"
+            )
         return value
 
     @model_validator(mode="after")

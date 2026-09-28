@@ -32,6 +32,21 @@ def test_create_lead_validates_and_dispatches(
     assert fetched.json()["status"] == "dispatched"
 
 
+def test_partial_lead_with_email_is_valid(client: TestClient) -> None:
+    response = client.post("/leads", json={"email": "minimal@example.com"})
+    assert response.status_code == 201
+    assert response.json()["first_name"] is None
+    assert response.json()["created_at"]
+
+
+def test_short_phone_rejected_without_persistence(client: TestClient) -> None:
+    for phone in ["123", "(1) -- 2", "-------"]:
+        response = client.post("/leads", json={"phone": phone})
+        assert response.status_code == 422
+        assert "at least 7 digits" in response.json()["detail"][0]["msg"]
+    assert client.get("/leads").json()["total"] == 0
+
+
 def test_create_lead_requires_contact_method(client: TestClient) -> None:
     response = client.post("/leads", json={"first_name": "No Contact"})
     assert response.status_code == 422
