@@ -43,11 +43,19 @@ export function createServer(
             (path === "/leads" ||
               new RegExp(`^/leads/${uuid}/retry$`, "i").test(path)));
         if (!allowed) return json(404, { detail: "Endpoint not found." });
-        // Refuse cross-origin browser writes; no broad CORS policy is needed.
+        // A remote development relay can preserve the browser's public Origin
+        // while forwarding an internal Host. Fetch Metadata still identifies
+        // a same-page request without weakening the cross-site write check.
+        const fetchSite = req.headers["sec-fetch-site"];
+        const forwardedHost = req.headers["x-forwarded-host"]
+          ?.split(",")[0]
+          .trim();
+        const requestHost = forwardedHost || req.headers.host;
         if (
           req.method === "POST" &&
           req.headers.origin &&
-          new URL(req.headers.origin).host !== req.headers.host
+          fetchSite !== "same-origin" &&
+          new URL(req.headers.origin).host !== requestHost
         ) {
           return json(403, {
             detail: "Cross-origin requests are not allowed.",

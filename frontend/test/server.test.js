@@ -116,6 +116,40 @@ test("preserves validation errors and rejects cross-origin or oversized writes",
   assert.equal(calls, 1);
 });
 
+test("accepts same-page writes through a remote development relay", async (t) => {
+  let calls = 0;
+  const upstream = await listen(
+    t,
+    http.createServer((req, res) => {
+      calls++;
+      res.writeHead(201, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ id: "saved" }));
+    }),
+  );
+  const base = await listen(t, createServer(upstream));
+
+  const fetchMetadata = await fetch(base + "/api/leads", {
+    method: "POST",
+    headers: {
+      Origin: "https://remote-preview.example",
+      "Sec-Fetch-Site": "same-origin",
+    },
+    body: "{}",
+  });
+  assert.equal(fetchMetadata.status, 201);
+
+  const forwardedHost = await fetch(base + "/api/leads", {
+    method: "POST",
+    headers: {
+      Origin: "https://remote-preview.example",
+      "X-Forwarded-Host": "remote-preview.example",
+    },
+    body: "{}",
+  });
+  assert.equal(forwardedHost.status, 201);
+  assert.equal(calls, 2);
+});
+
 test("reports an unavailable upstream without automatically repeating writes", async (t) => {
   const offline = http.createServer();
   await new Promise((resolve) => offline.listen(0, "127.0.0.1", resolve));
