@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, Integer, String, Text, Uuid, func
+from sqlalchemy import DateTime, Enum, Float, Integer, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -12,6 +12,14 @@ class LeadStatus(str, enum.Enum):
     PENDING = "pending"
     DISPATCHED = "dispatched"
     FAILED = "failed"
+
+
+class ResponsePriority(str, enum.Enum):
+    IMMEDIATE = "immediate"
+    PRIORITY = "priority"
+    STANDARD = "standard"
+    LOW = "low"
+    REVIEW = "review"
 
 
 class Lead(Base):
@@ -35,6 +43,19 @@ class Lead(Base):
     dispatch_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_webhook_status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    response_priority: Mapped[ResponsePriority | None] = mapped_column(
+        Enum(ResponsePriority, name="response_priority", native_enum=False, length=32),
+        nullable=True,
+        index=True,
+    )
+    response_window_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    response_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    decision_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    decision_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    decision_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

@@ -2,7 +2,7 @@
 
 First production-style vertical slice for lead intake automation:
 
-`POST /leads` → Pydantic validation → PostgreSQL persistence → n8n webhook → lead status update → retry/failure handling.
+`POST /leads` → validation → PostgreSQL persistence → n8n → local summary → Jev urgency decision → response-window routing.
 
 ## What is implemented
 
@@ -16,6 +16,9 @@ First production-style vertical slice for lead intake automation:
 - `GET /leads` with bounded pagination, literal text search, status filters, and overall status counts.
 - Docker Compose stack for the frontend, API, PostgreSQL, and n8n.
 - Importable n8n starter workflow at `n8n/workflows/lead_intake.json`.
+- Private decision endpoint used by n8n, with a shared automation key.
+- Local Qwen3 1.7B summaries through Ollama; structured names, email, and phone fields are excluded from Jev, and email/phone patterns in summaries are redacted.
+- Jev response-speed decisions with confidence gating and a human-review fallback.
 - API and dispatcher tests that run without Docker by using SQLite and `httpx.MockTransport`.
 
 ## Project layout
@@ -41,7 +44,7 @@ frontend/           Node.js server, browser UI, and proxy tests
    test -f .env || (umask 077; cp .env.example .env)
    ```
 
-2. Set a real `N8N_ENCRYPTION_KEY` in `.env`.
+2. Set real random values for `N8N_ENCRYPTION_KEY` and `AUTOMATION_INTERNAL_KEY` in `.env`. Add a `TYPESAFE_API_KEY` to enable live Jev decisions.
 
 3. Start the stack:
 
@@ -49,7 +52,11 @@ frontend/           Node.js server, browser UI, and proxy tests
    docker compose up --build -d
    ```
 
-   The API runs Alembic migrations before starting Uvicorn. All four services have health checks; the API waits for n8n readiness and the frontend waits for the API. Run `docker compose ps` to confirm they are healthy.
+   The API runs Alembic migrations before starting Uvicorn. The stack includes the frontend, API, PostgreSQL, n8n, and Ollama. Run `docker compose ps` to confirm they are healthy, then install the lightweight summary model once:
+
+   ```bash
+   docker compose exec ollama ollama pull qwen3:1.7b
+   ```
 
 4. Open n8n at `http://localhost:5678`, complete the local owner setup if prompted, import `n8n/workflows/lead_intake.json`, and publish the workflow. Alternatively, initialize the included workflow from the CLI:
 
@@ -80,7 +87,9 @@ frontend/           Node.js server, browser UI, and proxy tests
      }'
    ```
 
-A successful n8n response produces `status: "dispatched"`. If n8n is unavailable or returns a non-2xx response for all configured attempts, the lead still exists in PostgreSQL with `status: "failed"` and error metadata.
+A successful n8n response produces `status: "dispatched"`. n8n then asks the private API endpoint to summarize and prioritize the lead. The resulting summary, priority, confidence, and response deadline are stored on the lead. If the local model is unavailable, a factual summary is built from the submitted fields. If Jev is unavailable, unconfigured, or below the confidence threshold, the route is `review` rather than an invented urgency score.
+
+The current response windows are 15 minutes (`immediate`), 60 minutes (`priority`), 480 minutes (`standard`), 2,880 minutes (`low`), and 240 minutes (`review`). The included n8n Switch node exposes one output for each automated priority plus a fallback output for human review. Connect those outputs to notification, CRM, or task nodes as those services are added.
 
 Retry a failed lead:
 

@@ -177,10 +177,20 @@ function renderDetail(lead) {
       : lead.status === "failed"
         ? "This contact is safely saved. Resolve the delivery issue, then retry the handoff."
         : "The contact has been saved. Refresh to check delivery progress.";
+  const priorityNames = {
+    immediate: "Immediate · within 15 minutes",
+    priority: "Priority · within 1 hour",
+    standard: "Standard · within 1 business day",
+    low: "Low · within 2 days",
+    review: "Human review required",
+  };
+  const decision = lead.response_priority
+    ? `<section class="detail-section"><h3>NEXT ACTION</h3><dl>${item("Priority", priorityNames[lead.response_priority] || lead.response_priority)}${item("Respond by", date(lead.response_due_at, true))}${item("Confidence", lead.decision_confidence == null ? "Not available" : `${Math.round(lead.decision_confidence * 100)}%`)}</dl>${lead.summary ? `<p class="delivery-note">${escape(lead.summary)}</p>` : ""}${lead.decision_error ? `<p class="error-banner">${escape(lead.decision_error)}</p>` : ""}</section>`
+    : `<section class="detail-section"><h3>NEXT ACTION</h3><p class="delivery-note">Waiting for the decision workflow. Refresh in a moment.</p></section>`;
   $("detail-content").innerHTML =
     `<div class="avatar detail-avatar" aria-hidden="true">${escape(initials(lead))}</div><h2 id="detail-name">${escape(name(lead))}</h2><p class="detail-company">${escape(lead.company || "Individual contact")}</p>${badge(lead.status)}
     <section class="detail-section"><h3>CONTACT</h3><dl>${item("Email", lead.email)}${item("Phone", lead.phone)}${item("Source", lead.source)}${item("Added", date(lead.created_at, true))}</dl></section>
-    <section class="detail-section"><h3>DELIVERY</h3><dl>${item("Attempts", String(lead.dispatch_attempts))}${item("Last response", lead.last_webhook_status_code ? `HTTP ${lead.last_webhook_status_code}` : "No HTTP response")}${item("Updated", date(lead.updated_at, true))}</dl><p class="delivery-note">${note}</p>${lead.last_error ? `<p class="error-banner">${escape(lead.last_error)}</p>` : ""}</section>
+    <section class="detail-section"><h3>DELIVERY</h3><dl>${item("Attempts", String(lead.dispatch_attempts))}${item("Last response", lead.last_webhook_status_code ? `HTTP ${lead.last_webhook_status_code}` : "No HTTP response")}${item("Updated", date(lead.updated_at, true))}</dl><p class="delivery-note">${note}</p>${lead.last_error ? `<p class="error-banner">${escape(lead.last_error)}</p>` : ""}</section>${decision}
     ${lead.notes ? `<section class="detail-section"><h3>NOTES</h3><p>${escape(lead.notes)}</p></section>` : ""}<section class="detail-section"><h3>LEAD ID</h3><div class="lead-id">${escape(lead.id)}</div></section>`;
   $("retry-lead").hidden = lead.status !== "failed";
 }

@@ -33,6 +33,9 @@ services:
       N8N_DIAGNOSTICS_ENABLED: "false"
       N8N_PERSONALIZATION_ENABLED: "false"
       N8N_SECURE_COOKIE: "false"
+      N8N_RUNNERS_ENABLED: "false"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      AUTOMATION_INTERNAL_KEY: ${AUTOMATION_INTERNAL_KEY:-replace-this-local-automation-key}
     ports:
       - "5678:5678"
     volumes:
@@ -44,6 +47,17 @@ services:
       timeout: 5s
       retries: 12
       start_period: 30s
+
+  ollama:
+    image: ${OLLAMA_IMAGE:-ollama/ollama:0.12.3}
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
   api:
     build: .
@@ -59,6 +73,15 @@ services:
       N8N_WEBHOOK_TIMEOUT_SECONDS: ${N8N_WEBHOOK_TIMEOUT_SECONDS:-5}
       N8N_WEBHOOK_MAX_ATTEMPTS: ${N8N_WEBHOOK_MAX_ATTEMPTS:-3}
       N8N_WEBHOOK_BACKOFF_SECONDS: ${N8N_WEBHOOK_BACKOFF_SECONDS:-0.5}
+      AUTOMATION_INTERNAL_KEY: ${AUTOMATION_INTERNAL_KEY:-replace-this-local-automation-key}
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:1.7b}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-30}
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
+      TYPESAFE_API_URL: ${TYPESAFE_API_URL:-https://api.typesafe.ai/v1/systemone}
+      JEV_MODEL: ${JEV_MODEL:-jev-1.13.0}
+      JEV_TIMEOUT_SECONDS: ${JEV_TIMEOUT_SECONDS:-15}
+      DECISION_CONFIDENCE_THRESHOLD: ${DECISION_CONFIDENCE_THRESHOLD:-0.65}
     ports:
       - "8000:8000"
     healthcheck:
@@ -88,3 +111,4 @@ services:
 volumes:
   postgres_data:
   n8n_data:
+  ollama_data:
