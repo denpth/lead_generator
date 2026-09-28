@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#184f46" />
+    <title>Lead inbox · Lead Generator</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" type="module"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to inbox</a>
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="Lead Generator home"
+        ><img src="/favicon.svg" alt="" width="38" height="38" /><span
+          >lead<span class="brand-light">generator</span
+          ><small>YOUR INTAKE WORKSPACE</small></span
+        ></a
+      >
+      <div class="workspace">
+        <span class="workspace-icon">W</span>
+        <div>My workspace<small>Local environment</small></div>
+        <span class="workspace-dot"></span>
+      </div>
+      <p class="nav-label">WORKSPACE</p>
+      <nav aria-label="Main navigation">
+        <a class="nav-active" href="#main" aria-current="page"
+          ><span aria-hidden="true">▤</span>Lead inbox<span
+            class="nav-count"
+            id="nav-count"
+            >—</span
+          ></a
+        >
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="flow-mark" aria-hidden="true">↳</div>
+        <h3>A place for every lead.</h3>
+        <p>Capture the details.<br />Keep the handoff in view.</p>
+        <div class="local-label"><span></span> Running locally</div>
+      </div>
+    </aside>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="breadcrumb">
+          Workspace <span>/</span> <strong>Lead inbox</strong>
+        </div>
+        <div class="connection" id="connection">
+          <span></span>Checking connection
+        </div>
+      </header>
+      <main id="main">
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow">CAPTURE. CONNECT. FOLLOW THROUGH.</div>
+            <h1>Lead inbox<span>.</span></h1>
+            <p>Every lead in one place, from first contact to automation.</p>
+          </div>
+          <button class="primary" id="new-lead">
+            <span aria-hidden="true">＋</span> New lead
+          </button>
+        </div>
+        <section class="metrics" aria-label="Lead overview">
+          <div class="metric">
+            <div class="metric-label">
+              Total leads <span aria-hidden="true">↗</span>
+            </div>
+            <strong id="total-count">—</strong
+            ><small>All captured contacts</small>
+          </div>
+          <div class="metric">
+            <div class="metric-label">
+              Dispatched <span class="metric-dot green"></span>
+            </div>
+            <strong id="dispatched-count">—</strong
+            ><small>Accepted by automation</small>
+          </div>
+          <div class="metric">
+            <div class="metric-label">
+              Needs attention <span class="metric-dot amber"></span>
+            </div>
+            <strong id="failed-count">—</strong
+            ><small>Saved leads awaiting a retry</small>
+          </div>
+        </section>
+        <section class="inbox" aria-labelledby="inbox-heading">
+          <div class="inbox-title">
+            <div>
+              <h2 id="inbox-heading">All contacts</h2>
+              <span id="list-caption"
+                >Your latest leads and delivery status</span
+              >
+            </div>
+            <button class="secondary" id="refresh">
+              <span aria-hidden="true">↻</span> Refresh
+            </button>
+          </div>
+          <div class="toolbar">
+            <div class="filters" aria-label="Filter by delivery status">
+              <button class="filter active" data-status="" aria-pressed="true">
+                All leads</button
+              ><button
+                class="filter"
+                data-status="dispatched"
+                aria-pressed="false"
+              >
+                Dispatched</button
+              ><button class="filter" data-status="failed" aria-pressed="false">
+                Failed</button
+              ><button
+                class="filter"
+                data-status="pending"
+                aria-pressed="false"
+              >
+                Pending
+              </button>
+            </div>
+            <label class="search"
+              ><span aria-hidden="true">⌕</span
+              ><input
+                id="search"
+                type="search"
+                placeholder="Search contacts…"
+                aria-label="Search contacts"
+                maxlength="200"
+            /></label>
+          </div>
+          <div class="error-banner" id="list-error" role="alert" hidden></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">CONTACT</th>
+                  <th scope="col">COMPANY</th>
+                  <th scope="col">SOURCE</th>
+                  <th scope="col">DELIVERY</th>
+                  <th scope="col">ADDED</th>
+                  <th scope="col"><span class="sr-only">Details</span></th>
+                </tr>
+              </thead>
+              <tbody id="lead-rows"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="empty-state" role="status">
+            <div class="empty-icon" aria-hidden="true">↳</div>
+            <h3 id="empty-title">Loading your inbox</h3>
+            <p id="empty-description">Fetching the latest lead activity.</p>
+            <button class="secondary" id="empty-create" hidden>
+              Add your first lead
+            </button>
+          </div>
+          <footer class="table-footer">
+            <span id="page-summary" aria-live="polite">Loading…</span>
+            <div>
+              <button
+                class="page-button"
+                id="previous"
+                disabled
+                aria-label="Previous page"
+              >
+                ←</button
+              ><button
+                class="page-button"
+                id="next"
+                disabled
+                aria-label="Next page"
+              >
+                →
+              </button>
+            </div>
+          </footer>
+        </section>
+        <div class="page-note">
+          <span aria-hidden="true">◇</span> Leads are saved before delivery. If
+          a handoff fails, your contact stays here.
+        </div>
+      </main>
+      <footer class="app-footer">
+        <span>LEAD GENERATOR</span
+        ><span>Built for a better first connection.</span>
+      </footer>
+    </div>
+    <dialog id="create-dialog" aria-labelledby="create-title">
+      <div class="dialog-heading">
+        <div>
+          <div class="eyebrow">START A CONNECTION</div>
+          <h2 id="create-title">Add a new lead</h2>
+          <p>Save a contact and send it to your automation.</p>
+        </div>
+        <button
+          class="icon-button"
+          data-close="create-dialog"
+          aria-label="Close new lead form"
+        >
+          ×
+        </button>
+      </div>
+      <form id="lead-form">
+        <div class="form-grid">
+          <label
+            >First name<input
+              name="first_name"
+              autocomplete="given-name"
+              maxlength="100"
+              placeholder="Jane" /></label
+          ><label
+            >Last name<input
+              name="last_name"
+              autocomplete="family-name"
+              maxlength="100"
+              placeholder="Doe"
+          /></label>
+        </div>
+        <label
+          >Email<input
+            name="email"
+            type="email"
+            autocomplete="email"
+            maxlength="320"
+            placeholder="jane@company.com"
+        /></label>
+        <label
+          >Phone<input
+            name="phone"
+            type="tel"
+            autocomplete="tel"
+            maxlength="32"
+            placeholder="+1 (555) 123-4567"
+        /></label>
+        <p class="field-hint">Include at least one: email or phone.</p>
+        <div class="form-grid">
+          <label
+            >Company<input
+              name="company"
+              autocomplete="organization"
+              maxlength="200"
+              placeholder="Company name" /></label
+          ><label
+            >Source<input
+              name="source"
+              required
+              maxlength="100"
+              value="manual"
+              placeholder="e.g. website, referral"
+          /></label>
+        </div>
+        <label
+          >Notes <span class="optional">optional</span
+          ><textarea
+            name="notes"
+            rows="3"
+            maxlength="5000"
+            placeholder="A little context for the next conversation…"
+          ></textarea>
+        </label>
+        <div class="error-banner" id="form-error" role="alert" hidden></div>
+        <p class="form-progress" id="form-progress" role="status" hidden>
+          Saving your lead and waiting for automation. This may take a few
+          seconds.
+        </p>
+        <div class="form-footer">
+          <button type="button" class="secondary" data-close="create-dialog">
+            Cancel</button
+          ><button class="primary" type="submit" id="submit-lead">
+            Save & send lead <span aria-hidden="true">↗</span>
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog
+      id="detail-dialog"
+      class="detail-dialog"
+      aria-labelledby="detail-name"
+    >
+      <div class="detail-top">
+        <span class="eyebrow">CONTACT DETAILS</span
+        ><button
+          class="icon-button"
+          data-close="detail-dialog"
+          aria-label="Close lead details"
+        >
+          ×
+        </button>
+      </div>
+      <div id="detail-content"></div>
+      <div class="error-banner" id="detail-error" role="alert" hidden></div>
+      <div class="detail-actions">
+        <button class="secondary" id="detail-refresh">Refresh status</button
+        ><button class="primary" id="retry-lead" hidden>
+          Retry delivery ↗
+        </button>
+      </div>
+    </dialog>
+    <div id="toast" class="toast" role="status" hidden></div>
+  </body>
+</html>

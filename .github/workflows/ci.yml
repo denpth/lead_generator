@@ -21,3 +21,9 @@ jobs:
         run: ruff check .
       - name: Test
         run: pytest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Frontend checks and tests
+        working-directory: frontend
+        run: npm run check && npm test

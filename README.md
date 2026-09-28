@@ -6,13 +6,15 @@ First production-style vertical slice for lead intake automation:
 
 ## What is implemented
 
+- Node.js frontend at `http://localhost:3000` for lead intake, search, delivery status, and manual retries.
 - FastAPI API with strict Pydantic request validation.
 - PostgreSQL persistence through SQLAlchemy 2.x and Alembic migrations.
 - Lead lifecycle: `pending` → `dispatched` or `failed`.
 - n8n webhook delivery with configurable timeout, bounded exponential backoff for transient failures, and fail-fast handling for non-retryable 4xx responses.
 - Failed leads remain persisted and can be retried with `POST /leads/{lead_id}/retry`.
 - `GET /leads/{lead_id}` for status inspection.
-- Docker Compose stack for the API, PostgreSQL, and n8n.
+- `GET /leads` with bounded pagination, literal text search, status filters, and overall status counts.
+- Docker Compose stack for the frontend, API, PostgreSQL, and n8n.
 - Importable n8n starter workflow at `n8n/workflows/lead_intake.json`.
 - API and dispatcher tests that run without Docker by using SQLite and `httpx.MockTransport`.
 
@@ -28,6 +30,7 @@ migrations/         Alembic migrations
 n8n/workflows/      n8n workflow export
 postgres/init/      local PostgreSQL bootstrap for the n8n database
 tests/              API and delivery tests
+frontend/           Node.js server, browser UI, and proxy tests
 ```
 
 ## Local setup with Docker Compose
@@ -46,7 +49,7 @@ tests/              API and delivery tests
    docker compose up --build -d
    ```
 
-   The API runs Alembic migrations before starting Uvicorn. PostgreSQL, n8n, and the API each have health checks; the API waits for n8n readiness during startup. Run `docker compose ps` to confirm all three are healthy.
+   The API runs Alembic migrations before starting Uvicorn. All four services have health checks; the API waits for n8n readiness and the frontend waits for the API. Run `docker compose ps` to confirm they are healthy.
 
 4. Open n8n at `http://localhost:5678`, complete the local owner setup if prompted, import `n8n/workflows/lead_intake.json`, and publish the workflow. Alternatively, initialize the included workflow from the CLI:
 
@@ -63,7 +66,7 @@ tests/              API and delivery tests
    http://n8n:5678/webhook/lead-intake
    ```
 
-5. Create a lead:
+5. Open `http://localhost:3000` and click **New lead**. The inbox shows existing database records, supports search and status filters, and opens delivery details when you select a contact. Failed deliveries have a **Retry delivery** action. You can also create a lead directly:
 
    ```bash
    curl -sS http://localhost:8000/leads \
@@ -119,6 +122,28 @@ pytest
 ```
 
 The tests cover validation, persistence-facing API behavior, successful dispatch, exhausted failure, transient exponential retry behavior, non-retryable 4xx handling, manual retry, and retry conflict handling.
+
+## Frontend development
+
+The frontend uses Node.js 22+ (Docker uses Node 24) and browser-native HTML, CSS, and JavaScript. It has no npm dependencies or bundle step. From the repository root:
+
+```bash
+cd frontend
+npm run dev
+```
+
+By default, the Node server listens on port 3000 and proxies `/api/...` to `http://127.0.0.1:8000`. Set `PORT` and `API_ORIGIN` to override those values. Stop the Compose frontend first (`docker compose stop frontend`) if it already occupies port 3000. Reload the browser after editing browser assets.
+
+The same-origin proxy keeps the browser API URL consistent between Docker and host development. It only forwards the supported lead and health endpoints, limits request size, and preserves API errors. Credentials and database settings stay out of browser assets. The Compose frontend port binds to localhost; this is a local workspace without user authentication.
+
+```bash
+npm run check
+npm test
+```
+
+List endpoint example: `GET /leads?limit=20&offset=0&status=failed&q=Acme`. The response has `items`, the filtered `total`, and overall `counts` for pending, dispatched, and failed leads. Search matches name fields, email, phone, or company. Limit is 1–100; offset must be non-negative.
+
+The UI disables submission while delivery is in flight. If a network interruption makes the result uncertain, it asks the user to refresh before submitting again. It never automatically repeats a lead-creation request. `Dispatched` confirms webhook acceptance, not downstream workflow completion.
 
 ## Failure semantics
 

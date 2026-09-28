@@ -20,7 +20,9 @@ class LeadCreate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    @field_validator("first_name", "last_name", "phone", "company", "source", "notes", mode="before")
+    @field_validator(
+        "first_name", "last_name", "phone", "company", "source", "notes", mode="before"
+    )
     @classmethod
     def strip_strings(cls, value: object) -> object:
         if isinstance(value, str):
@@ -59,3 +61,9 @@ class LeadRead(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class LeadPage(BaseModel):
+    items: list[LeadRead]
+    total: int
+    counts: dict[str, int]
