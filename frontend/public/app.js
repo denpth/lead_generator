@@ -40,6 +40,11 @@ function name(lead) {
     "Unnamed contact"
   );
 }
+function ask(lead) {
+  const value = String(lead.summary || "Ask not available yet").trim();
+  const sentence = value.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim() || value;
+  return sentence.length > 160 ? `${sentence.slice(0, 157).trimEnd()}…` : sentence;
+}
 function initials(lead) {
   return lead.first_name || lead.last_name
     ? [lead.first_name?.[0], lead.last_name?.[0]]
@@ -143,7 +148,7 @@ async function loadLeads() {
       .map(
         (lead, i) => `<tr>
       <td><div class="contact"><span class="avatar tone-${i % 4}" aria-hidden="true">${escape(initials(lead))}</span><div class="contact-copy"><button class="contact-button" data-lead="${escape(lead.id)}">${escape(name(lead))}</button><small>${escape(lead.email || lead.phone || "No contact details")}</small></div></div></td>
-      <td class="company-cell">${escape(lead.company || "—")}</td><td><span class="source-tag">${escape(lead.source)}</span></td><td>${badge(lead.status)}</td><td class="date-cell">${escape(date(lead.created_at))}</td><td><button class="row-open" data-lead="${escape(lead.id)}" aria-label="View ${escape(name(lead))}">↗</button></td></tr>`,
+      <td class="company-cell">${escape(lead.company || "—")}</td><td class="ask-cell">${escape(ask(lead))}</td><td><span class="source-tag">${escape(lead.source)}</span></td><td>${badge(lead.status)}</td><td class="date-cell">${escape(date(lead.created_at))}</td><td><button class="row-open" data-lead="${escape(lead.id)}" aria-label="View ${escape(name(lead))}">↗</button></td></tr>`,
       )
       .join("");
     $("empty-state").hidden = result.items.length > 0;

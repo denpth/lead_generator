@@ -127,8 +127,8 @@ class LeadDecisionEngine:
                         "required": ["summary"],
                     },
                     "prompt": (
-                        "/no_think\nSummarize this inbound lead in one factual sentence under "
-                        "35 words. Do not infer facts, urgency, or intent. Return JSON with "
+                        "/no_think\nSummarize the lead's request in one factual sentence under "
+                        "18 words. Keep only the concrete ask. Do not infer facts, urgency, or intent. Return JSON with "
                         "one string field named summary.\n"
                         f"Lead facts: {facts}"
                     ),
@@ -140,7 +140,7 @@ class LeadDecisionEngine:
             summary = self._clean_summary(str(response.json()["response"]))
             if not summary:
                 raise ValueError("empty summary")
-            return summary[:1000], None
+            return self._shorten_summary(summary), None
         except (httpx.HTTPError, KeyError, TypeError, ValueError):
             return fallback, "Local summary model was unavailable; used a factual fallback"
 
@@ -227,14 +227,23 @@ class LeadDecisionEngine:
 
     @staticmethod
     def _fallback_summary(facts: dict[str, str | None]) -> str:
-        parts = [f"Source: {facts['source']}."]
+        parts = [f"Source: {facts['source']}"]
         if facts["company"]:
-            parts.append(f"Company: {facts['company']}.")
+            parts.append(f"Company: {facts['company']}")
         if facts["notes"]:
-            parts.append(f"Notes: {facts['notes']}")
+            notes = re.sub(r"[.!?]+", ";", facts["notes"].strip().rstrip(".!? "))
+            parts.append(f"Notes: {notes}")
         else:
-            parts.append("No notes were supplied.")
-        return " ".join(parts)[:1000]
+            parts.append("No notes were supplied")
+        return LeadDecisionEngine._shorten_summary("; ".join(parts) + ".")
+
+    @staticmethod
+    def _shorten_summary(value: str) -> str:
+        value = value.strip()
+        match = re.search(r"[.!?](?:\s|$)", value)
+        if match:
+            value = value[: match.start() + 1]
+        return value[:180].rstrip() + ("…" if len(value) > 180 else "")
 
     @staticmethod
     def _lead_facts(lead: Lead) -> dict[str, str | None]:

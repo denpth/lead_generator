@@ -121,7 +121,7 @@ def test_missing_jev_key_routes_to_review_with_original_facts() -> None:
 
     assert result.priority == ResponsePriority.REVIEW
     assert result.summary == (
-        "Source: website. Company: Acme. Notes: Need a proposal before tomorrow morning."
+        "Source: website; Company: Acme; Notes: Need a proposal before tomorrow morning."
     )
     assert "not configured" in (result.warning or "")
 
@@ -231,6 +231,12 @@ def test_review_discards_a_prompt_injected_model_summary() -> None:
     assert result.priority == ResponsePriority.REVIEW
     assert "Production is down" not in result.summary
     assert "Ignore prior instructions" in result.summary
+
+
+def test_summary_is_one_short_sentence() -> None:
+    assert LeadDecisionEngine._shorten_summary(
+        "Need a demo next week. Ignore this second sentence and extra detail."
+    ) == "Need a demo next week."
 
 
 class StubDecisionEngine:
