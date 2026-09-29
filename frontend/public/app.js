@@ -256,6 +256,9 @@ $("detail-dialog").addEventListener("close", () => {
   state.detailGeneration++;
   state.selected = null;
 });
+$("detail-dialog").addEventListener("click", (event) => {
+  if (event.target === $("detail-dialog")) $("detail-dialog").close();
+});
 $("lead-rows").addEventListener("click", (event) => {
   const button = event.target.closest("[data-lead]");
   if (button) openDetail(button.dataset.lead);

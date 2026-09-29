@@ -121,7 +121,7 @@ def test_missing_jev_key_routes_to_review_with_original_facts() -> None:
 
     assert result.priority == ResponsePriority.REVIEW
     assert result.summary == (
-        "Source: website; Company: Acme; Notes: Need a proposal before tomorrow morning."
+        "Source: website. Company: Acme. Notes: Need a proposal before tomorrow morning."
     )
     assert "not configured" in (result.warning or "")
 
