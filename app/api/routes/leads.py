@@ -1,4 +1,6 @@
 import uuid
+from datetime import UTC, datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
@@ -20,13 +22,29 @@ def list_leads_endpoint(
     q: str = Query(default="", max_length=200),
     status_filter: LeadStatus | None = Query(default=None, alias="status"),
     priority_filter: ResponsePriority | None = Query(default=None, alias="priority"),
+    queue: Literal["review", "accepted", "discarded", "overdue", "completed", "open"] | None = None,
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
 ) -> LeadPage:
     conditions = []
+    active = [Lead.completed_at.is_(None), or_(
+        Lead.review_status.is_(None), Lead.review_status != ReviewStatus.DISCARDED
+    )]
+    overdue = [*active, Lead.response_due_at < datetime.now(UTC)]
+    queues = {
+        "review": [Lead.review_status == ReviewStatus.PENDING],
+        "accepted": [Lead.review_status == ReviewStatus.ACCEPTED, Lead.completed_at.is_(None)],
+        "discarded": [Lead.review_status == ReviewStatus.DISCARDED],
+        "completed": [Lead.completed_at.is_not(None)],
+        "overdue": overdue,
+        "open": active,
+    }
+    if queue:
+        conditions.extend(queues[queue])
     if status_filter is not None:
         conditions.append(Lead.status == status_filter)
     if priority_filter is not None:
+        conditions.extend(active)
         conditions.append(Lead.response_priority == priority_filter)
         if priority_filter == ResponsePriority.REVIEW:
             conditions.append(Lead.review_status == ReviewStatus.PENDING)
@@ -51,8 +69,8 @@ def list_leads_endpoint(
         )
     total = db.scalar(select(func.count()).select_from(Lead).where(*conditions)) or 0
     ordering = (
-        (Lead.response_due_at.asc().nulls_last(), Lead.created_at.asc())
-        if priority_filter == ResponsePriority.REVIEW
+        (Lead.response_due_at.asc().nulls_last(), Lead.created_at.asc(), Lead.id.asc())
+        if priority_filter or queue in {"review", "accepted", "open", "overdue"}
         else (Lead.created_at.desc(), Lead.id.desc())
     )
     leads = db.scalars(
@@ -64,15 +82,24 @@ def list_leads_endpoint(
     priority_counts = {priority.value: 0 for priority in ResponsePriority}
     for priority, count in db.execute(
         select(Lead.response_priority, func.count())
-        .where(Lead.response_priority.is_not(None))
+        .where(Lead.response_priority.is_not(None), *active)
         .group_by(Lead.response_priority)
     ):
         priority_counts[priority.value] = count
+    # Resolved legacy reviews must not inflate the pending-review badge.
+    priority_counts["review"] = db.scalar(select(func.count()).select_from(Lead).where(
+        Lead.review_status == ReviewStatus.PENDING
+    )) or 0
+    action_counts = {
+        name: db.scalar(select(func.count()).select_from(Lead).where(*filters)) or 0
+        for name, filters in queues.items()
+    }
     return LeadPage(
         items=[LeadRead.model_validate(lead) for lead in leads],
         total=total,
         counts=counts,
         priority_counts=priority_counts,
+        action_counts=action_counts,
     )
 
 

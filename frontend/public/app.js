@@ -16,6 +16,7 @@ const escape = (value) =>
 const state = {
   status: "",
   priority: "",
+  queue: "",
   q: "",
   offset: 0,
   limit: 20,
@@ -41,9 +42,19 @@ function name(lead) {
   );
 }
 function ask(lead) {
-  const value = String(lead.summary || "Ask not available yet").trim();
+  if (lead.input_safety === "suspicious") return "Suspicious content — inspect original notes before acting.";
+  const value = String((lead.summary?.startsWith("Source:") ? lead.notes : lead.summary) || lead.notes || "Ask not available yet").trim();
   const sentence = value.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim() || value;
   return sentence.length > 160 ? `${sentence.slice(0, 157).trimEnd()}…` : sentence;
+}
+function nextAction(lead) {
+  if (lead.review_status === "discarded") return "Discarded";
+  if (lead.completed_at) return "Follow-up complete";
+  if (lead.review_status === "accepted" && lead.response_priority === "review") return "Accepted — priority not recorded";
+  const label = lead.review_status === "pending" ? "Needs review" :
+    lead.response_priority ? `Respond · ${lead.response_priority}` : "Awaiting assessment";
+  const due = Date.parse(lead.response_due_at);
+  return Number.isFinite(due) ? `${label} · ${due < Date.now() ? "OVERDUE · " : ""}${date(lead.response_due_at, true)}` : label;
 }
 function initials(lead) {
   return lead.first_name || lead.last_name
@@ -99,8 +110,10 @@ async function api(path, options = {}) {
 
 async function loadLeads() {
   const generation = ++state.generation;
-  $("inbox-heading").textContent = state.priority
-    ? "Leads needing review"
+  $("inbox-heading").textContent = state.queue
+    ? `${state.queue[0].toUpperCase()}${state.queue.slice(1)} leads`
+    : state.priority
+    ? `${state.priority === "review" ? "Needs review" : state.priority} leads`
     : state.status
       ? `${statusNames[state.status]} contacts`
       : "All contacts";
@@ -121,6 +134,7 @@ async function loadLeads() {
     if (state.q) params.set("q", state.q);
     if (state.status) params.set("status", state.status);
     if (state.priority) params.set("priority", state.priority);
+    if (state.queue) params.set("queue", state.queue);
     const result = await api(`/leads?${params}`);
     if (generation !== state.generation) return;
     connection(true);
@@ -138,17 +152,20 @@ async function loadLeads() {
     $("dispatched-count").textContent = result.counts.dispatched;
     $("failed-count").textContent = result.counts.failed;
     $("review-count").textContent = result.priority_counts?.review ?? 0;
+    $("action-overdue-count").textContent = result.action_counts?.overdue ?? 0;
+    $("action-accepted-count").textContent = result.action_counts?.accepted ?? 0;
+    $("action-caption").textContent = `${result.action_counts?.review ?? 0} waiting for review; ${result.action_counts?.overdue ?? 0} overdue; ${result.action_counts?.accepted ?? 0} accepted for follow-up.`;
     $("action-review-count").textContent = result.priority_counts?.review ?? 0;
     $("action-failed-count").textContent = result.counts.failed;
     $("action-immediate-count").textContent =
       result.priority_counts?.immediate ?? 0;
     $("list-caption").textContent =
-      `Latest first · ${result.total} ${result.total === 1 ? "contact" : "contacts"}${state.q ? " matching your search" : ""}`;
+      `${state.priority || ["overdue", "accepted"].includes(state.queue) ? "Earliest due first" : "Latest first"} · ${result.total} contacts${state.q ? " matching your search" : ""}`;
     $("lead-rows").innerHTML = result.items
       .map(
         (lead, i) => `<tr>
       <td><div class="contact"><span class="avatar tone-${i % 4}" aria-hidden="true">${escape(initials(lead))}</span><div class="contact-copy"><button class="contact-button" data-lead="${escape(lead.id)}">${escape(name(lead))}</button><small>${escape(lead.email || lead.phone || "No contact details")}</small></div></div></td>
-      <td class="company-cell">${escape(lead.company || "—")}</td><td class="ask-cell">${escape(ask(lead))}</td><td><span class="source-tag">${escape(lead.source)}</span></td><td>${badge(lead.status)}</td><td class="date-cell">${escape(date(lead.created_at))}</td><td><button class="row-open" data-lead="${escape(lead.id)}" aria-label="View ${escape(name(lead))}">↗</button></td></tr>`,
+      <td class="company-cell">${escape(lead.company || "—")}</td><td class="ask-cell">${escape(ask(lead))}</td><td class="next-action-cell">${escape(nextAction(lead))}</td><td><span class="source-tag">${escape(lead.source)}</span></td><td>${badge(lead.status)}</td><td class="date-cell">${escape(date(lead.created_at))}</td><td><button class="row-open" data-lead="${escape(lead.id)}" aria-label="View ${escape(name(lead))}">↗</button></td></tr>`,
       )
       .join("");
     $("empty-state").hidden = result.items.length > 0;
@@ -186,6 +203,9 @@ function renderDetail(lead) {
     lead.response_priority === "review" && lead.review_status === "pending"
   );
   $("review-discard").hidden = $("review-accept").hidden;
+  $("review-fields").hidden = $("review-accept").hidden;
+  $("complete-lead").hidden = !lead.response_priority || lead.response_priority === "review" ||
+    ["pending", "discarded"].includes(lead.review_status) || !!lead.completed_at;
   $("retry-lead").textContent = "Retry delivery ↗";
   const item = (label, value) =>
     `<div><dt>${label}</dt><dd>${escape(value || "—")}</dd></div>`;
@@ -211,11 +231,19 @@ function renderDetail(lead) {
     <section class="detail-section"><h3>DELIVERY</h3><dl>${item("Attempts", String(lead.dispatch_attempts))}${item("Last response", lead.last_webhook_status_code ? `HTTP ${lead.last_webhook_status_code}` : "No HTTP response")}${item("Updated", date(lead.updated_at, true))}</dl><p class="delivery-note">${note}</p>${lead.last_error ? `<p class="error-banner">${escape(lead.last_error)}</p>` : ""}</section>${decision}
     ${lead.notes ? `<section class="detail-section"><h3>NOTES</h3><p>${escape(lead.notes)}</p></section>` : ""}<section class="detail-section"><h3>LEAD ID</h3><div class="lead-id">${escape(lead.id)}</div></section>`;
   $("retry-lead").hidden = lead.status !== "failed";
+  const audit = document.createElement("section");
+  audit.className = "detail-section";
+  const percent = (v) => v == null ? "Not recorded" : `${Math.round(v * 100)}%`;
+  audit.innerHTML = `<h3>DECISION DETAILS</h3><dl>${item("Next action", nextAction(lead))}${item("Summary fidelity", `${lead.summary_fidelity || "Not recorded"} · ${percent(lead.summary_fidelity_confidence)}`)}${item("Input safety", `${lead.input_safety || "Not recorded"} · ${percent(lead.input_safety_confidence)}`)}${item("Reviewer", lead.reviewer_name)}${item("Decision note", lead.review_note)}${item("Reviewed", lead.reviewed_at ? date(lead.reviewed_at, true) : "Not recorded")}</dl>`;
+  $("detail-content").append(audit);
 }
 
 async function openDetail(id) {
   const generation = ++state.detailGeneration;
   state.selected = null;
+  $("review-note").value = "";
+  $("review-priority").value = "";
+  ["review-fields", "review-accept", "review-discard", "complete-lead"].forEach((id) => $(id).hidden = true);
   showError("detail-error", "");
   $("detail-content").innerHTML = '<h2 id="detail-name">Loading contact…</h2>';
   $("retry-lead").hidden = true;
@@ -257,7 +285,10 @@ $("detail-dialog").addEventListener("close", () => {
   state.selected = null;
 });
 $("detail-dialog").addEventListener("click", (event) => {
-  if (event.target === $("detail-dialog")) $("detail-dialog").close();
+  const box = $("detail-dialog").getBoundingClientRect();
+  if (event.target === $("detail-dialog") &&
+      (event.clientX < box.left || event.clientX > box.right ||
+       event.clientY < box.top || event.clientY > box.bottom)) $("detail-dialog").close();
 });
 $("lead-rows").addEventListener("click", (event) => {
   const button = event.target.closest("[data-lead]");
@@ -272,27 +303,28 @@ $("next").addEventListener("click", () => {
   state.offset += state.limit;
   loadLeads();
 });
-function setFilter(status, priority = "") {
+function setFilter(status, priority = "", queue = "") {
   state.status = status;
   state.priority = priority;
+  state.queue = queue;
   state.offset = 0;
   document.querySelectorAll(".filter").forEach((button) => {
     const active =
-      button.dataset.status === status &&
-      (button.dataset.priority || "") === priority;
+      (button.dataset.status || "") === status &&
+      (button.dataset.priority || "") === priority && (button.dataset.queue || "") === queue;
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", String(active));
   });
 }
 document.querySelectorAll(".filter").forEach((button) =>
   button.addEventListener("click", () => {
-    setFilter(button.dataset.status || "", button.dataset.priority || "");
+    setFilter(button.dataset.status || "", button.dataset.priority || "", button.dataset.queue || "");
     loadLeads();
   }),
 );
 document.querySelectorAll(".action-item").forEach((button) =>
   button.addEventListener("click", () => {
-    setFilter(button.dataset.status || "", button.dataset.priority || "");
+    setFilter(button.dataset.status || "", button.dataset.priority || "", button.dataset.queue || "");
     loadLeads();
   }),
 );
@@ -417,11 +449,17 @@ $("retry-lead").addEventListener("click", async () => {
 async function decideReview(decision) {
   if (!state.selected) return;
   const generation = state.detailGeneration;
+  const payload = { reviewer_name: $("reviewer-name").value.trim(), note: $("review-note").value.trim(), priority: $("review-priority").value || null };
+  if (!payload.reviewer_name || !payload.note || (decision === "accepted" && !payload.priority)) {
+    showError("detail-error", "Enter your name and a decision note; choose a priority to accept.");
+    return;
+  }
   $("review-accept").disabled = $("review-discard").disabled = true;
   showError("detail-error", "");
   try {
     const lead = await api(`/leads/${state.selected.id}/review/${decision}`, {
       method: "POST",
+      body: JSON.stringify(payload),
     });
     if (generation === state.detailGeneration) renderDetail(lead);
     await loadLeads();
@@ -440,3 +478,18 @@ async function decideReview(decision) {
 $("review-accept").addEventListener("click", () => decideReview("accepted"));
 $("review-discard").addEventListener("click", () => decideReview("discarded"));
 loadLeads();
+$("complete-lead").addEventListener("click", async () => {
+  if (!state.selected) return;
+  const generation = state.detailGeneration;
+  $("complete-lead").disabled = true;
+  showError("detail-error", "");
+  try {
+    const lead = await api(`/leads/${state.selected.id}/complete`, { method: "POST" });
+    if (generation === state.detailGeneration) renderDetail(lead);
+    await loadLeads();
+    toast("Follow-up marked complete.");
+  } catch (error) {
+    if (generation === state.detailGeneration) showError("detail-error", message(error));
+  }
+  finally { $("complete-lead").disabled = false; }
+});

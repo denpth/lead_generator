@@ -62,6 +62,10 @@ class Lead(Base):
         index=True,
     )
     response_window_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reviewer_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     response_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     decision_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     urgency_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)

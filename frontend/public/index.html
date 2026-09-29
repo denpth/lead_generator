@@ -97,6 +97,8 @@
             <p id="action-caption">Your next decisions, in order.</p>
           </div>
           <div class="action-items">
+            <button class="action-item" data-queue="overdue"><strong id="action-overdue-count">—</strong><span>Overdue responses</span><b>→</b></button>
+            <button class="action-item" data-queue="accepted"><strong id="action-accepted-count">—</strong><span>Accepted for follow-up</span><b>→</b></button>
             <button class="action-item" data-status="" data-priority="review">
               <strong id="action-review-count">—</strong><span>Review uncertain or harmful leads</span><b>→</b>
             </button>
@@ -122,6 +124,10 @@
           </div>
           <div class="toolbar">
             <div class="filters" aria-label="Filter by delivery status">
+              <button class="filter" data-queue="accepted" aria-pressed="false">Accepted</button>
+              <button class="filter" data-queue="discarded" aria-pressed="false">Discarded</button>
+              <button class="filter" data-queue="completed" aria-pressed="false">Completed</button>
+              <button class="filter" data-queue="overdue" aria-pressed="false">Overdue</button>
               <button class="filter active" data-status="" aria-pressed="true">
                 All leads</button
               ><button
@@ -160,6 +166,7 @@
                   <th scope="col">CONTACT</th>
                   <th scope="col">COMPANY</th>
                   <th scope="col">ASK</th>
+                  <th scope="col">NEXT ACTION</th>
                   <th scope="col">SOURCE</th>
                   <th scope="col">DELIVERY</th>
                   <th scope="col">ADDED</th>
@@ -314,8 +321,21 @@
         </button>
       </div>
       <div id="detail-content"></div>
+      <section id="review-fields" class="detail-section" hidden>
+        <h3>YOUR REVIEW DECISION</h3>
+        <label>Your name<input id="reviewer-name" maxlength="100" placeholder="Recorded with your decision" /></label>
+        <label>Decision note<textarea id="review-note" maxlength="2000" placeholder="Why accept or discard this lead?"></textarea></label>
+        <label>Follow-up priority<select id="review-priority">
+          <option value="">Choose before accepting</option>
+          <option value="immediate">Immediate — 15 minutes</option>
+          <option value="priority">Priority — 1 hour</option>
+          <option value="standard">Standard — 8 hours</option>
+          <option value="low">Low — 48 hours</option>
+        </select></label>
+      </section>
       <div class="error-banner" id="detail-error" role="alert" hidden></div>
       <div class="detail-actions">
+        <button class="primary" id="complete-lead" hidden>Mark follow-up complete</button>
         <button class="secondary" id="detail-refresh">Refresh status</button
         ><button class="secondary" id="review-discard" hidden>
           Discard as harmful

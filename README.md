@@ -156,7 +156,17 @@ The UI disables submission while delivery is in flight. If a network interruptio
 
 Partial contacts are supported: name, company, and notes are optional. Provide an email or a phone number containing at least seven digits. A supplied invalid phone is rejected even when an email is also present; clear the phone field to use email only. Both the page and API explain this rule. Unexpected or incomplete server responses are rejected before rendering contact details, so they cannot appear as saved leads with invalid dates.
 
-## Failure semantics
+## Human review and follow-up
+
+The inbox shows a short ask plus the next action and deadline; the detail pane keeps the full summary and model assessments. Click outside the pane or its close button to dismiss it.
+
+Pending reviews require a reviewer name and reason. Accepting also requires an immediate, priority, standard, or low follow-up priority; its deadline starts at acceptance. Discarding retains the record for inspection. Accepted, discarded, overdue, and completed queues are available separately. Mark follow-up complete after taking action; completion is idempotent and removes the lead from active priority counts. Automated decisions cannot replace accepted, discarded, or completed decisions.
+
+`POST /leads/{id}/review/accepted` now requires a JSON body such as `{"reviewer_name":"Dennis","note":"Verified the request","priority":"standard"}`. Discard uses `/review/discarded` with the same name and note fields, without priority. `POST /leads/{id}/complete` marks follow-up complete. `GET /leads?queue=overdue` supports review, accepted, discarded, completed, open, and overdue queues; `action_counts` returns overall queue counts independent of the current search. Old accepted records without a chosen priority remain visible for inspection rather than receiving an invented deadline.
+
+Apply `alembic upgrade head` before starting the updated API (Compose performs migrations on startup). Reviewer names are self-reported in this local dashboard, not authenticated identities. These actions record decisions and completion; they do not send customer messages or synchronize a CRM.
+
+## Delivery failure semantics
 
 The database commit happens before the outbound n8n call. This is intentional: a temporary automation outage must not discard a valid lead. The HTTP resource is therefore created even when automation dispatch ultimately fails, and the response exposes that state as `failed` so the same lead can be retried safely.
 

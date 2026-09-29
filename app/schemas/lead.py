@@ -66,6 +66,10 @@ class LeadRead(BaseModel):
     summary: str | None
     response_priority: ResponsePriority | None
     review_status: ReviewStatus | None
+    reviewer_name: str | None
+    review_note: str | None
+    reviewed_at: datetime | None
+    completed_at: datetime | None
     response_window_minutes: int | None
     response_due_at: datetime | None
     decision_confidence: float | None
@@ -88,6 +92,14 @@ class LeadPage(BaseModel):
     total: int
     counts: dict[str, int]
     priority_counts: dict[str, int]
+    action_counts: dict[str, int] = Field(default_factory=dict)
+
+
+class ReviewDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    reviewer_name: str = Field(min_length=1, max_length=100)
+    note: str = Field(min_length=1, max_length=2000)
+    priority: ResponsePriority | None = None
 
 
 class LeadDecisionRead(BaseModel):

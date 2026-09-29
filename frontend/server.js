@@ -42,6 +42,7 @@ export function createServer(
           (req.method === "POST" &&
             (path === "/leads" ||
               new RegExp(`^/leads/${uuid}/retry$`, "i").test(path) ||
+              new RegExp(`^/leads/${uuid}/complete$`, "i").test(path) ||
               new RegExp(`^/leads/${uuid}/review/(accepted|discarded)$`, "i").test(path)));
         if (!allowed) return json(404, { detail: "Endpoint not found." });
         // A remote development relay can preserve the browser's public Origin

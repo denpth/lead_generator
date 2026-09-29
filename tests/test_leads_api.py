@@ -1,9 +1,34 @@
+from datetime import UTC, datetime, timedelta
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from app.models.lead import Lead, LeadStatus, ResponsePriority, ReviewStatus
 from app.services.n8n import DispatchResult
 from tests.conftest import StubDispatcher
+
+
+def test_overdue_queue_excludes_resolved_work(client: TestClient, session_factory: sessionmaker) -> None:
+    now = datetime.now(UTC)
+    with session_factory() as session:
+        for name, minutes, review, completed in [
+            ("later", -10, None, None),
+            ("earlier", -60, ReviewStatus.PENDING, None),
+            ("future", 60, None, None),
+            ("discarded", -90, ReviewStatus.DISCARDED, None),
+            ("done", -90, None, now),
+        ]:
+            session.add(Lead(email=f"{name}@example.com", first_name=name,
+                             response_priority=ResponsePriority.REVIEW if review else ResponsePriority.STANDARD,
+                             review_status=review, completed_at=completed,
+                             response_due_at=now + timedelta(minutes=minutes)))
+        session.commit()
+    page = client.get("/leads?queue=overdue").json()
+    assert [item["first_name"] for item in page["items"]] == ["earlier", "later"]
+    assert page["action_counts"]["overdue"] == 2
+    assert page["action_counts"]["open"] == 3
+    assert page["priority_counts"]["standard"] == 2
+    assert client.get("/leads?queue=unknown").status_code == 422
 
 
 def test_create_lead_validates_and_dispatches(
@@ -135,6 +160,7 @@ def test_list_leads_validates_pagination_and_status(client: TestClient) -> None:
         "items": [],
         "total": 0,
         "counts": {"pending": 0, "dispatched": 0, "failed": 0},
+        "action_counts": {name: 0 for name in ("review", "accepted", "discarded", "overdue", "completed", "open")},
         "priority_counts": {
             "immediate": 0,
             "priority": 0,
@@ -167,11 +193,39 @@ def test_review_can_be_accepted_or_discarded(
         session.commit()
         accepted_id, discarded_id = accepted.id, discarded.id
 
-    accepted_response = client.post(f"/leads/{accepted_id}/review/accepted")
-    discarded_response = client.post(f"/leads/{discarded_id}/review/discarded")
+    payload = {"reviewer_name": "Reviewer", "note": "Checked original request", "priority": "priority"}
+    assert client.post(f"/leads/{accepted_id}/complete").status_code == 409
+    assert client.post(f"/leads/{accepted_id}/review/accepted", json={
+        "reviewer_name": "Reviewer", "note": "Checked original request"
+    }).status_code == 422
+    accepted_response = client.post(f"/leads/{accepted_id}/review/accepted", json=payload)
+    discarded_response = client.post(f"/leads/{discarded_id}/review/discarded", json=payload)
 
     assert accepted_response.status_code == 200
     assert accepted_response.json()["review_status"] == "accepted"
     assert discarded_response.status_code == 200
     assert discarded_response.json()["review_status"] == "discarded"
     assert client.get("/leads?priority=review").json()["total"] == 0
+    accepted = accepted_response.json()
+    assert accepted["response_priority"] == "priority"
+    assert accepted["reviewer_name"] == "Reviewer"
+    assert accepted["reviewed_at"]
+    assert accepted["response_due_at"]
+    assert client.post(f"/leads/{accepted_id}/review/discarded", json=payload).status_code == 409
+    assert client.get("/leads?queue=accepted").json()["total"] == 1
+    assert client.get("/leads?queue=discarded").json()["total"] == 1
+    assert client.get("/leads").json()["priority_counts"]["review"] == 0
+    assert client.post(f"/leads/{discarded_id}/complete").status_code == 409
+    completed = client.post(f"/leads/{accepted_id}/complete").json()
+    assert completed["completed_at"]
+    assert client.post(f"/leads/{accepted_id}/complete").json()["completed_at"] == completed["completed_at"]
+    assert client.get("/leads?queue=accepted").json()["total"] == 0
+    assert client.get("/leads?queue=completed").json()["total"] == 1
+    assert client.get("/leads").json()["priority_counts"]["priority"] == 0
+    from app.config import get_settings
+    assert client.post(f"/internal/leads/{accepted_id}/decision", headers={
+        "X-Automation-Key": get_settings().automation_internal_key
+    }).status_code == 409
+    assert client.post(f"/internal/leads/{discarded_id}/decision", headers={
+        "X-Automation-Key": get_settings().automation_internal_key
+    }).status_code == 409

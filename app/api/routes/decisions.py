@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from app.config import Settings, get_settings
 from app.db import get_db
@@ -11,7 +12,6 @@ from app.dependencies import get_lead_decision_engine
 from app.models.lead import Lead, ResponsePriority, ReviewStatus
 from app.schemas.lead import LeadDecisionRead
 from app.services.decision import LeadDecisionEngine
-from app.services.leads import get_lead
 
 router = APIRouter(prefix="/internal/leads", tags=["automation"])
 
@@ -35,9 +35,12 @@ def decide_lead_endpoint(
     db: Session = Depends(get_db),
     engine: LeadDecisionEngine = Depends(get_lead_decision_engine),
 ) -> LeadDecisionRead:
-    lead = get_lead(db, lead_id)
+    # Serialize automated decisions with human review to preserve human authority.
+    lead = db.scalar(select(Lead).where(Lead.id == lead_id).with_for_update())
     if lead is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lead not found")
+    if lead.review_status in {ReviewStatus.ACCEPTED, ReviewStatus.DISCARDED} or lead.completed_at:
+        raise HTTPException(409, "Human decisions and completed follow-ups cannot be overwritten")
 
     result = engine.decide(lead)
     now = datetime.now(UTC)
