@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import sessionmaker
 
+from app.models.lead import Lead, LeadStatus, ResponsePriority, ReviewStatus
 from app.services.n8n import DispatchResult
 from tests.conftest import StubDispatcher
 
@@ -141,3 +143,35 @@ def test_list_leads_validates_pagination_and_status(client: TestClient) -> None:
             "review": 0,
         },
     }
+
+
+def test_review_can_be_accepted_or_discarded(
+    client: TestClient, session_factory: sessionmaker
+) -> None:
+    with session_factory() as session:
+        accepted = Lead(
+            email="accept-review@example.com",
+            source="test",
+            status=LeadStatus.DISPATCHED,
+            response_priority=ResponsePriority.REVIEW,
+            review_status=ReviewStatus.PENDING,
+        )
+        discarded = Lead(
+            email="discard-review@example.com",
+            source="test",
+            status=LeadStatus.DISPATCHED,
+            response_priority=ResponsePriority.REVIEW,
+            review_status=ReviewStatus.PENDING,
+        )
+        session.add_all([accepted, discarded])
+        session.commit()
+        accepted_id, discarded_id = accepted.id, discarded.id
+
+    accepted_response = client.post(f"/leads/{accepted_id}/review/accepted")
+    discarded_response = client.post(f"/leads/{discarded_id}/review/discarded")
+
+    assert accepted_response.status_code == 200
+    assert accepted_response.json()["review_status"] == "accepted"
+    assert discarded_response.status_code == 200
+    assert discarded_response.json()["review_status"] == "discarded"
+    assert client.get("/leads?priority=review").json()["total"] == 0

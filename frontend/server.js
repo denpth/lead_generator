@@ -41,7 +41,8 @@ export function createServer(
               new RegExp(`^/leads/${uuid}$`, "i").test(path))) ||
           (req.method === "POST" &&
             (path === "/leads" ||
-              new RegExp(`^/leads/${uuid}/retry$`, "i").test(path)));
+              new RegExp(`^/leads/${uuid}/retry$`, "i").test(path) ||
+              new RegExp(`^/leads/${uuid}/review/(accepted|discarded)$`, "i").test(path)));
         if (!allowed) return json(404, { detail: "Endpoint not found." });
         // A remote development relay can preserve the browser's public Origin
         // while forwarding an internal Host. Fetch Metadata still identifies

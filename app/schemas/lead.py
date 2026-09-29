@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
-from app.models.lead import LeadStatus, ResponsePriority
+from app.models.lead import LeadStatus, ResponsePriority, ReviewStatus
 
 _PHONE_RE = re.compile(r"^[0-9+().\-\s]{1,32}$")
 
@@ -65,6 +65,7 @@ class LeadRead(BaseModel):
     last_webhook_status_code: int | None
     summary: str | None
     response_priority: ResponsePriority | None
+    review_status: ReviewStatus | None
     response_window_minutes: int | None
     response_due_at: datetime | None
     decision_confidence: float | None

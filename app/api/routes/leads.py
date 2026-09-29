@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.dependencies import get_n8n_dispatcher
-from app.models.lead import Lead, LeadStatus, ResponsePriority
+from app.models.lead import Lead, LeadStatus, ResponsePriority, ReviewStatus
 from app.schemas.lead import LeadCreate, LeadPage, LeadRead
 from app.services.leads import create_lead, dispatch_lead, get_lead
 from app.services.n8n import N8nDispatcher
@@ -28,6 +28,8 @@ def list_leads_endpoint(
         conditions.append(Lead.status == status_filter)
     if priority_filter is not None:
         conditions.append(Lead.response_priority == priority_filter)
+        if priority_filter == ResponsePriority.REVIEW:
+            conditions.append(Lead.review_status == ReviewStatus.PENDING)
     if q.strip():
         # Treat SQL wildcard characters as literal search text.
         pattern = (

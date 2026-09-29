@@ -133,6 +133,10 @@ async function loadLeads() {
     $("dispatched-count").textContent = result.counts.dispatched;
     $("failed-count").textContent = result.counts.failed;
     $("review-count").textContent = result.priority_counts?.review ?? 0;
+    $("action-review-count").textContent = result.priority_counts?.review ?? 0;
+    $("action-failed-count").textContent = result.counts.failed;
+    $("action-immediate-count").textContent =
+      result.priority_counts?.immediate ?? 0;
     $("list-caption").textContent =
       `Latest first · ${result.total} ${result.total === 1 ? "contact" : "contacts"}${state.q ? " matching your search" : ""}`;
     $("lead-rows").innerHTML = result.items
@@ -173,6 +177,10 @@ async function loadLeads() {
 function renderDetail(lead) {
   state.selected = lead;
   $("retry-lead").disabled = $("detail-refresh").disabled = false;
+  $("review-accept").hidden = !(
+    lead.response_priority === "review" && lead.review_status === "pending"
+  );
+  $("review-discard").hidden = $("review-accept").hidden;
   $("retry-lead").textContent = "Retry delivery ↗";
   const item = (label, value) =>
     `<div><dt>${label}</dt><dd>${escape(value || "—")}</dd></div>`;
@@ -269,6 +277,12 @@ function setFilter(status, priority = "") {
   });
 }
 document.querySelectorAll(".filter").forEach((button) =>
+  button.addEventListener("click", () => {
+    setFilter(button.dataset.status || "", button.dataset.priority || "");
+    loadLeads();
+  }),
+);
+document.querySelectorAll(".action-item").forEach((button) =>
   button.addEventListener("click", () => {
     setFilter(button.dataset.status || "", button.dataset.priority || "");
     loadLeads();
@@ -392,4 +406,29 @@ $("retry-lead").addEventListener("click", async () => {
     }
   }
 });
+async function decideReview(decision) {
+  if (!state.selected) return;
+  const generation = state.detailGeneration;
+  $("review-accept").disabled = $("review-discard").disabled = true;
+  showError("detail-error", "");
+  try {
+    const lead = await api(`/leads/${state.selected.id}/review/${decision}`, {
+      method: "POST",
+    });
+    if (generation === state.detailGeneration) renderDetail(lead);
+    await loadLeads();
+    toast(
+      decision === "accepted"
+        ? "Review accepted. It is ready for CRM follow-up."
+        : "Review discarded and retained in the audit history.",
+    );
+  } catch (error) {
+    if (generation === state.detailGeneration)
+      showError("detail-error", message(error));
+  } finally {
+    $("review-accept").disabled = $("review-discard").disabled = false;
+  }
+}
+$("review-accept").addEventListener("click", () => decideReview("accepted"));
+$("review-discard").addEventListener("click", () => decideReview("discarded"));
 loadLeads();

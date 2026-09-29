@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.dependencies import get_lead_decision_engine
-from app.models.lead import Lead, ResponsePriority
+from app.models.lead import Lead, ResponsePriority, ReviewStatus
 from app.schemas.lead import LeadDecisionRead
 from app.services.decision import LeadDecisionEngine
 from app.services.leads import get_lead
@@ -89,6 +89,7 @@ def _store_decision(
 ) -> None:
     lead.summary = summary
     lead.response_priority = priority
+    lead.review_status = ReviewStatus.PENDING if priority == ResponsePriority.REVIEW else None
     lead.response_window_minutes = window_minutes
     lead.response_due_at = due_at
     lead.decision_confidence = confidence

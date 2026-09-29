@@ -22,6 +22,12 @@ class ResponsePriority(str, enum.Enum):
     REVIEW = "review"
 
 
+class ReviewStatus(str, enum.Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    DISCARDED = "discarded"
+
+
 class Lead(Base):
     __tablename__ = "leads"
 
@@ -47,6 +53,11 @@ class Lead(Base):
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     response_priority: Mapped[ResponsePriority | None] = mapped_column(
         Enum(ResponsePriority, name="response_priority", native_enum=False, length=32),
+        nullable=True,
+        index=True,
+    )
+    review_status: Mapped[ReviewStatus | None] = mapped_column(
+        Enum(ReviewStatus, name="review_status", native_enum=False, length=32),
         nullable=True,
         index=True,
     )

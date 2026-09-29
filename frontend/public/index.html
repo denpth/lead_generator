@@ -90,6 +90,24 @@
             ><small>Leads waiting for a human decision</small>
           </div>
         </section>
+        <section class="action-center" aria-labelledby="action-heading">
+          <div>
+            <div class="eyebrow">WHAT NEEDS DOING</div>
+            <h2 id="action-heading">Action center</h2>
+            <p id="action-caption">Your next decisions, in order.</p>
+          </div>
+          <div class="action-items">
+            <button class="action-item" data-status="" data-priority="review">
+              <strong id="action-review-count">—</strong><span>Review uncertain or harmful leads</span><b>→</b>
+            </button>
+            <button class="action-item" data-status="failed">
+              <strong id="action-failed-count">—</strong><span>Retry failed automation handoffs</span><b>→</b>
+            </button>
+            <button class="action-item" data-status="" data-priority="immediate">
+              <strong id="action-immediate-count">—</strong><span>Respond to immediate leads</span><b>→</b>
+            </button>
+          </div>
+        </section>
         <section class="inbox" aria-labelledby="inbox-heading">
           <div class="inbox-title">
             <div>
@@ -298,6 +316,12 @@
       <div class="error-banner" id="detail-error" role="alert" hidden></div>
       <div class="detail-actions">
         <button class="secondary" id="detail-refresh">Refresh status</button
+        ><button class="secondary" id="review-discard" hidden>
+          Discard as harmful
+        </button
+        ><button class="primary" id="review-accept" hidden>
+          Accept for follow-up ↗
+        </button
         ><button class="primary" id="retry-lead" hidden>
           Retry delivery ↗
         </button>
