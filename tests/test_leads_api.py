@@ -126,11 +126,18 @@ def test_list_leads_filters_searches_and_paginates(
 
 
 def test_list_leads_validates_pagination_and_status(client: TestClient) -> None:
-    for query in ["limit=0", "limit=101", "offset=-1", "status=unknown"]:
+    for query in ["limit=0", "limit=101", "offset=-1", "status=unknown", "priority=unknown"]:
         assert client.get(f"/leads?{query}").status_code == 422
     empty = client.get("/leads").json()
     assert empty == {
         "items": [],
         "total": 0,
         "counts": {"pending": 0, "dispatched": 0, "failed": 0},
+        "priority_counts": {
+            "immediate": 0,
+            "priority": 0,
+            "standard": 0,
+            "low": 0,
+            "review": 0,
+        },
     }

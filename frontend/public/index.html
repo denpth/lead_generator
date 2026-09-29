@@ -82,6 +82,13 @@
             <strong id="failed-count">—</strong
             ><small>Saved leads awaiting a retry</small>
           </div>
+          <div class="metric">
+            <div class="metric-label">
+              Needs review <span class="metric-dot amber"></span>
+            </div>
+            <strong id="review-count">—</strong
+            ><small>Leads waiting for a human decision</small>
+          </div>
         </section>
         <section class="inbox" aria-labelledby="inbox-heading">
           <div class="inbox-title">
@@ -107,6 +114,8 @@
                 Dispatched</button
               ><button class="filter" data-status="failed" aria-pressed="false">
                 Failed</button
+              ><button class="filter" data-status="" data-priority="review" aria-pressed="false">
+                Needs review</button
               ><button
                 class="filter"
                 data-status="pending"

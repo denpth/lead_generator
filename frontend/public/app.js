@@ -15,6 +15,7 @@ const escape = (value) =>
   );
 const state = {
   status: "",
+  priority: "",
   q: "",
   offset: 0,
   limit: 20,
@@ -93,9 +94,11 @@ async function api(path, options = {}) {
 
 async function loadLeads() {
   const generation = ++state.generation;
-  $("inbox-heading").textContent = state.status
-    ? `${statusNames[state.status]} contacts`
-    : "All contacts";
+  $("inbox-heading").textContent = state.priority
+    ? "Leads needing review"
+    : state.status
+      ? `${statusNames[state.status]} contacts`
+      : "All contacts";
   $("lead-rows").replaceChildren();
   $("empty-state").hidden = false;
   $("empty-title").textContent = "Loading your inbox";
@@ -112,6 +115,7 @@ async function loadLeads() {
     });
     if (state.q) params.set("q", state.q);
     if (state.status) params.set("status", state.status);
+    if (state.priority) params.set("priority", state.priority);
     const result = await api(`/leads?${params}`);
     if (generation !== state.generation) return;
     connection(true);
@@ -128,6 +132,7 @@ async function loadLeads() {
     $("nav-count").textContent = all;
     $("dispatched-count").textContent = result.counts.dispatched;
     $("failed-count").textContent = result.counts.failed;
+    $("review-count").textContent = result.priority_counts?.review ?? 0;
     $("list-caption").textContent =
       `Latest first · ${result.total} ${result.total === 1 ? "contact" : "contacts"}${state.q ? " matching your search" : ""}`;
     $("lead-rows").innerHTML = result.items
@@ -251,18 +256,21 @@ $("next").addEventListener("click", () => {
   state.offset += state.limit;
   loadLeads();
 });
-function setFilter(status) {
+function setFilter(status, priority = "") {
   state.status = status;
+  state.priority = priority;
   state.offset = 0;
   document.querySelectorAll(".filter").forEach((button) => {
-    const active = button.dataset.status === status;
+    const active =
+      button.dataset.status === status &&
+      (button.dataset.priority || "") === priority;
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", String(active));
   });
 }
 document.querySelectorAll(".filter").forEach((button) =>
   button.addEventListener("click", () => {
-    setFilter(button.dataset.status);
+    setFilter(button.dataset.status || "", button.dataset.priority || "");
     loadLeads();
   }),
 );

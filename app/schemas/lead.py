@@ -86,6 +86,7 @@ class LeadPage(BaseModel):
     items: list[LeadRead]
     total: int
     counts: dict[str, int]
+    priority_counts: dict[str, int]
 
 
 class LeadDecisionRead(BaseModel):
