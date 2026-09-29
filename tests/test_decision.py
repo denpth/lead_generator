@@ -54,12 +54,12 @@ def test_decision_uses_local_summary_and_minimizes_jev_state() -> None:
                     "summary_fidelity": {
                         "type": "choice",
                         "choice": "faithful",
-                        "confidence": 0.96,
+                        "confidence": 0.2,
                     },
                     "input_safety": {
                         "type": "choice",
                         "choice": "safe",
-                        "confidence": 0.98,
+                        "confidence": 0.3,
                     },
                 },
             },
