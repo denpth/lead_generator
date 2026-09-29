@@ -241,6 +241,11 @@ class StubDecisionEngine:
             window_minutes=60,
             confidence=0.88,
             model="jev-test",
+            urgency_confidence=0.88,
+            summary_fidelity="faithful",
+            summary_fidelity_confidence=0.94,
+            input_safety="safe",
+            input_safety_confidence=0.99,
         )
 
 
@@ -261,3 +266,8 @@ def test_internal_decision_endpoint_is_authenticated_and_persists(client: TestCl
     assert saved["summary"] == "A qualified website inquiry."
     assert saved["response_priority"] == "priority"
     assert saved["response_window_minutes"] == 60
+    assert saved["urgency_confidence"] == 0.88
+    assert saved["summary_fidelity"] == "faithful"
+    assert saved["summary_fidelity_confidence"] == 0.94
+    assert saved["input_safety"] == "safe"
+    assert saved["input_safety_confidence"] == 0.99

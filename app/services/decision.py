@@ -27,6 +27,11 @@ class DecisionResult:
     confidence: float | None
     model: str | None
     warning: str | None = None
+    urgency_confidence: float | None = None
+    summary_fidelity: str | None = None
+    summary_fidelity_confidence: float | None = None
+    input_safety: str | None = None
+    input_safety_confidence: float | None = None
 
 
 class LeadDecisionEngine:
@@ -74,6 +79,8 @@ class LeadDecisionEngine:
             safety_answer = answers["input_safety"]
             priority = ResponsePriority(speed_answer["choice"])
             confidence = float(speed_answer["confidence"])
+            fidelity = fidelity_answer["choice"]
+            safety = safety_answer["choice"]
             summary_is_safe = (
                 fidelity_answer["choice"] == "faithful"
                 and safety_answer["choice"] == "safe"
@@ -94,6 +101,11 @@ class LeadDecisionEngine:
                 confidence=confidence,
                 model=payload.get("model", self.jev_model),
                 warning=summary_warning,
+                urgency_confidence=confidence,
+                summary_fidelity=fidelity,
+                summary_fidelity_confidence=float(fidelity_answer["confidence"]),
+                input_safety=safety,
+                input_safety_confidence=float(safety_answer["confidence"]),
             )
         except (httpx.HTTPError, KeyError, TypeError, ValueError) as exc:
             warning = self._combine(summary_warning, f"Jev decision failed: {type(exc).__name__}")

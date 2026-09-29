@@ -52,6 +52,10 @@ def decide_lead_endpoint(
         result.confidence,
         result.model,
         result.warning,
+        result.summary_fidelity,
+        result.summary_fidelity_confidence,
+        result.input_safety,
+        result.input_safety_confidence,
         now,
     )
     return LeadDecisionRead(
@@ -77,6 +81,10 @@ def _store_decision(
     confidence: float | None,
     model: str | None,
     warning: str | None,
+    summary_fidelity: str | None,
+    summary_fidelity_confidence: float | None,
+    input_safety: str | None,
+    input_safety_confidence: float | None,
     decided_at: datetime,
 ) -> None:
     lead.summary = summary
@@ -84,6 +92,11 @@ def _store_decision(
     lead.response_window_minutes = window_minutes
     lead.response_due_at = due_at
     lead.decision_confidence = confidence
+    lead.urgency_confidence = confidence
+    lead.summary_fidelity = summary_fidelity
+    lead.summary_fidelity_confidence = summary_fidelity_confidence
+    lead.input_safety = input_safety
+    lead.input_safety_confidence = input_safety_confidence
     lead.decision_model = model
     lead.decision_error = warning
     lead.decided_at = decided_at

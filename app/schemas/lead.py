@@ -68,6 +68,11 @@ class LeadRead(BaseModel):
     response_window_minutes: int | None
     response_due_at: datetime | None
     decision_confidence: float | None
+    urgency_confidence: float | None
+    summary_fidelity: str | None
+    summary_fidelity_confidence: float | None
+    input_safety: str | None
+    input_safety_confidence: float | None
     decision_model: str | None
     decision_error: str | None
     decided_at: datetime | None
