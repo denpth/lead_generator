@@ -1,0 +1,55 @@
+{
+  "id": "a75ee401-5862-4d32-94c7-31d9c65d1953",
+  "name": "Lead Intake - Summarize and Prioritize",
+  "nodes": [
+    {
+      "parameters": {"httpMethod": "POST", "path": "lead-intake", "responseMode": "onReceived", "options": {"responseCode": 202}},
+      "id": "a75ee401-5862-4d32-94c7-31d9c65d1952",
+      "name": "Lead Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [260, 300],
+      "webhookId": "lead-intake"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://api:8000/internal/leads/{{ $json.body.lead.id }}/decision",
+        "sendHeaders": true,
+        "headerParameters": {"parameters": [{"name": "X-Automation-Key", "value": "={{ $env.AUTOMATION_INTERNAL_KEY }}"}]},
+        "options": {"timeout": 60000}
+      },
+      "id": "5c35d094-6b24-4b21-b418-f20420c37f6c",
+      "name": "Summarize and Decide",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "rules": {"values": [
+          {"conditions": {"options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"}, "conditions": [{"leftValue": "={{ $json.route }}", "rightValue": "immediate", "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"}, "renameOutput": true, "outputKey": "Immediate - 15 minutes"},
+          {"conditions": {"options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"}, "conditions": [{"leftValue": "={{ $json.route }}", "rightValue": "priority", "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"}, "renameOutput": true, "outputKey": "Priority - 1 hour"},
+          {"conditions": {"options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"}, "conditions": [{"leftValue": "={{ $json.route }}", "rightValue": "standard", "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"}, "renameOutput": true, "outputKey": "Standard - 1 business day"},
+          {"conditions": {"options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"}, "conditions": [{"leftValue": "={{ $json.route }}", "rightValue": "low", "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"}, "renameOutput": true, "outputKey": "Low - 2 days"}
+        ]},
+        "options": {"fallbackOutput": "extra"}
+      },
+      "id": "d034ca03-c56c-49f8-a4bd-71f0a6c52db5",
+      "name": "Route by Response Window",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [740, 300]
+    }
+  ],
+  "connections": {
+    "Lead Webhook": {"main": [[{"node": "Summarize and Decide", "type": "main", "index": 0}]]},
+    "Summarize and Decide": {"main": [[{"node": "Route by Response Window", "type": "main", "index": 0}]]}
+  },
+  "pinData": {},
+  "settings": {"executionOrder": "v1"},
+  "active": false,
+  "versionId": "ba973dfa-e62e-45a0-b2ac-4dcf10a6df39",
+  "meta": {"templateCredsSetupCompleted": true},
+  "tags": []
+}
